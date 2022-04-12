@@ -10,7 +10,7 @@ const serverlessConfiguration: AWS = {
   provider: {
     name: 'aws',
     runtime: 'nodejs14.x',
-    memorySize: 512,
+    memorySize: 1024,
     timeout: 20,
     region: 'ap-northeast-1',
     stage: "${opt:stage, 'dev'}",

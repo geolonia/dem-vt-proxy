@@ -38,9 +38,12 @@ const tileHandler: SimpleHandler = async (event) => {
   const yInt = parseInt(y, 10);
   const zInt = parseInt(z, 10);
 
-  const demResp = await fetch(
-    `https://cyberjapandata.gsi.go.jp/xyz/dem5a/${zInt}/${xInt}/${yInt}.txt`
-  );
+  let demUrl = `https://cyberjapandata.gsi.go.jp/xyz/dem/${zInt}/${xInt}/${yInt}.txt`;
+  if (zInt <= 14) {
+    demUrl = `https://cyberjapandata.gsi.go.jp/xyz/dem5a/${zInt}/${xInt}/${yInt}.txt`;
+  }
+
+  const demResp = await fetch(demUrl);
   if (demResp.status === 404) {
     return formatErrorResponse(204, '');
   }
@@ -71,11 +74,11 @@ const tileHandler: SimpleHandler = async (event) => {
         type: vector_tile.Tile.GeomType.POLYGON,
         geometry: [
           ((1 & 0x7) | (1 << 3)), // MoveTo for 1
-          zz(colIdx), zz(rowIdx),
+            zz(colIdx), zz(rowIdx),
           ((2 & 0x7) | (3 << 3)), // LineTo for 3
-          zz(1),  zz(0),
-          zz(0),  zz(1),
-          zz(-1), zz(0),
+            zz(1),  zz(0),
+            zz(0),  zz(1),
+            zz(-1), zz(0),
           15, // close path
         ],
         tags: [

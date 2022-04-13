@@ -244,8 +244,8 @@ const tileHandler: SimpleHandler = async (event) => {
   const respHeaders: { [key: string]: string } = {
     'content-type': 'application/vnd.mapbox-vector-tile',
     // 'cache-control': 'no-cache',
-    // 'cache-control': 'public, max-age=3600',
-    'cache-control': 'public, max-age=30',
+    'cache-control': 'public, max-age=3600',
+    // 'cache-control': 'public, max-age=30',
   };
 
   const buffer = vector_tile.Tile.encode(tile).finish() as Buffer;

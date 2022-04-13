@@ -1,0 +1,39 @@
+{
+  "version": 8,
+  "name": "OpenStreetMap Carto + GSI DEM",
+  "metadata": {"maputnik:renderer": "mbgljs"},
+  "sources": {
+    "openstreetmap": {
+      "type": "raster",
+      "tiles": ["https://osm-carto-tiles.geolonia.com/{z}/{x}/{y}.png"],
+      "minzoom": 0,
+      "maxzoom": 19,
+      "attribution": "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> Contributors",
+      "tileSize": 256
+    },
+    "dem": {
+      "type": "vector",
+      "url": "https://o3mc94v2u1.execute-api.ap-northeast-1.amazonaws.com/jgsi-dem/tiles.json"
+    }
+  },
+  "light": {
+    "anchor": "viewport",
+    "intensity": 1
+  },
+  "layers": [
+    {"id": "opensteetmap", "type": "raster", "source": "openstreetmap"},
+    {
+      "id": "dem",
+      "type": "fill-extrusion",
+      "source": "dem",
+      "source-layer": "dem",
+      "paint": {
+        "fill-extrusion-color": "rgba(255, 0, 0, 1)",
+        "fill-extrusion-height": ["to-number", ["get", "ele"]],
+        "fill-extrusion-vertical-gradient": true,
+        "fill-extrusion-opacity": 0.5
+      }
+    }
+  ],
+  "id": "kowtj0g5g"
+}

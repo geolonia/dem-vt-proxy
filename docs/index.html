@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>GSI-DEM Vector</title>
+    <style>
+      html, body, #map {
+        height: 100vh;
+        width: 100vw;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"
+      data-gesture-handling="off"
+      data-lat="35.3528"
+      data-lng="138.7807"
+      data-zoom="10"
+      data-pitch="60"
+      data-marker="off"
+      data-style="./style.json"
+    ></div>
+    <script type="text/javascript" src="https://cdn.geolonia.com/v1/embed?geolonia-api-key=YOUR-API-KEY"></script>
+    <script type="module">
+      const map = new geolonia.Map('#map');
+      window._mainMap = map;
+      map.on('load', function() {
+      });
+    </script>
+  </body>
+</html>

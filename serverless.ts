@@ -41,13 +41,13 @@ const serverlessConfiguration: AWS = {
         {
           httpApi: {
             method: 'get',
-            path: '/dem5a/tiles.json'
+            path: '/jgsi-dem/tiles.json'
           }
         },
         {
           httpApi: {
             method: 'get',
-            path: '/dem5a/tiles/{z}/{x}/{y}'
+            path: '/jgsi-dem/tiles/{z}/{x}/{y}'
           }
         }
       ]

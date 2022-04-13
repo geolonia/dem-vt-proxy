@@ -1,9 +1,13 @@
-import { formatErrorResponse, SimpleHandler } from "@libs/api-gateway";
+import { formatErrorResponse, SimpleHandler } from "../libs/api-gateway";
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import * as Accept from "@hapi/accept";
 import fetch, { Headers } from "node-fetch";
 import { encodeBuffer } from "http-encoding";
-import { vector_tile } from "@libs/protobuf";
+import { vector_tile } from "../libs/protobuf";
+
+// use this to scale (pixels) from the source to bigger pixels in the vector tile
+// not implemented yet
+const SCALE_FACTOR = 1;
 
 const metaHandler: SimpleHandler = async (event) => {
   let hostname = `https://${event.requestContext.domainName}`;
@@ -16,18 +20,44 @@ const metaHandler: SimpleHandler = async (event) => {
     body: JSON.stringify({
       "tilejson": "3.0.0",
       "tiles": [
-        `${hostname}/dem5a/tiles/{z}/{x}/{y}.mvt`,
+        `${hostname}/jgsi-dem/tiles/{z}/{x}/{y}.mvt`,
       ],
       "vector_layers": [],
       "maxzoom": 0,
-      "minzoom": 15,
-      "name": "dem5a",
+      "minzoom": 15 + (SCALE_FACTOR - 1),
+      "name": "jgsi-dem",
+      "attribution": "<a href=\"https://www.gsi.go.jp/\" target=\"_blank\">&copy; GSI Japan</a>",
     }),
     headers: {
       'content-type': 'application/json',
     },
   };
 };
+
+const dem10url = (x: number, y: number, z: number) => `https://cyberjapandata.gsi.go.jp/xyz/dem/${z}/${x}/${y}.txt`;
+const dem5aurl = (x: number, y: number, z: number) => `https://cyberjapandata.gsi.go.jp/xyz/dem5a/${z}/${x}/${y}.txt`;
+
+const getDemData = async (demUrl: string) => {
+  const demResp = await fetch(demUrl);
+  if (demResp.status === 404) {
+    return null;
+  }
+  if (!demResp.ok) {
+    return null;
+  }
+  const demData = await demResp.text();
+  const parsedData = demData
+    .split('\n')
+    .map((x) =>
+      x
+        .split(',')
+        .map((x) => x.trim())
+        .filter((x) => x !== '')
+    );
+  return parsedData;
+}
+
+const zz = (value: number) => (value << 1) ^ (value >> 31);
 
 const tileHandler: SimpleHandler = async (event) => {
   const headers = new Headers(event.headers);
@@ -38,35 +68,34 @@ const tileHandler: SimpleHandler = async (event) => {
   const yInt = parseInt(y, 10);
   const zInt = parseInt(z, 10);
 
-  let demUrl = `https://cyberjapandata.gsi.go.jp/xyz/dem/${zInt}/${xInt}/${yInt}.txt`;
-  if (zInt <= 14) {
-    demUrl = `https://cyberjapandata.gsi.go.jp/xyz/dem5a/${zInt}/${xInt}/${yInt}.txt`;
-  }
+  const [
+    dem5data,
+    dem10data,
+  ] = await Promise.all([
+    getDemData(dem5aurl(xInt, yInt, zInt)),
+    getDemData(dem10url(xInt, yInt, zInt)),
+  ]);
 
-  const demResp = await fetch(demUrl);
-  if (demResp.status === 404) {
+  if (dem5data === null) {
     return formatErrorResponse(204, '');
   }
-  if (!demResp.ok) {
-    return formatErrorResponse();
-  }
-  const demData = await demResp.text();
 
   const features: vector_tile.Tile.IFeature[] = [];
   const keys: string[] = ["ele"];
   const values: vector_tile.Tile.IValue[] = [];
-  const parsedData = demData.split('\n').map((x) => x.split(',').map((x) => x.trim()));
 
-  const zz = (value: number) => (value << 1) ^ (value >> 31);
-
-  for (const [rowIdx, row] of parsedData.entries()) {
+  for (const [rowIdx, row] of dem5data.entries()) {
     for (const [colIdx, col] of row.entries()) {
-      if (col === 'e' || col === '') {
+      let val = col;
+      if (val === 'e' && dem10data) {
+        val = dem10data[rowIdx][colIdx];
+      }
+      if (val === 'e') {
         continue;
       }
-      let thisValueIndex = values.findIndex((v) => v.stringValue === col);
+      let thisValueIndex = values.findIndex((v) => v.stringValue === val);
       if (thisValueIndex === -1) {
-        thisValueIndex = values.push({stringValue: col}) - 1;
+        thisValueIndex = values.push({stringValue: val}) - 1;
       }
 
       features.push({
@@ -113,7 +142,8 @@ const tileHandler: SimpleHandler = async (event) => {
   const respHeaders: { [key: string]: string } = {
     'content-type': 'application/vnd.mapbox-vector-tile',
     // 'cache-control': 'no-cache',
-    'cache-control': 'public, max-age=3600',
+    // 'cache-control': 'public, max-age=3600',
+    'cache-control': 'public, max-age=30',
   };
 
   const buffer = vector_tile.Tile.encode(tile).finish() as Buffer;
@@ -135,9 +165,9 @@ const tileHandler: SimpleHandler = async (event) => {
 };
 
 export const main: APIGatewayProxyHandlerV2 = async (event) => {
-  if (event.routeKey === 'GET /dem5a/tiles.json') {
+  if (event.routeKey === 'GET /jgsi-dem/tiles.json') {
     return await metaHandler(event);
-  } else if (event.routeKey === 'GET /dem5a/tiles/{z}/{x}/{y}') {
+  } else if (event.routeKey === 'GET /jgsi-dem/tiles/{z}/{x}/{y}') {
     return await tileHandler(event);
   }
 

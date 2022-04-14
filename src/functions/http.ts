@@ -3,6 +3,7 @@ import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import * as Accept from "@hapi/accept";
 import fetch, { Headers } from "node-fetch";
 import { encodeBuffer } from "http-encoding";
+import { isEqual } from "lodash";
 import { vector_tile } from "../libs/protobuf";
 
 // use this to scale pixels from the source to bigger pixels in the vector tile
@@ -28,7 +29,7 @@ const metaHandler: SimpleHandler = async (event) => {
         {
           "id": "dem",
           "fields": {
-            "ele": "String, elevation from sea level in meters.",
+            "ele": "Number, elevation from sea level in meters * 100.",
             "f_m": "Number, the F value of zfxy in meters."
           }
         }
@@ -161,8 +162,22 @@ const tileHandler: SimpleHandler = async (event) => {
   const zInt = parseInt(z, 10);
 
   const features: vector_tile.Tile.IFeature[] = [];
-  const keys: string[] = ["ele", "f_m"];
+  const keys: string[] = [
+    "ele",
+    "f_m",
+    "x",
+    "y",
+    "z",
+    "f",
+  ];
   const values: vector_tile.Tile.IValue[] = [];
+  const addValue = (value: vector_tile.Tile.IValue) => {
+    let valIdx = values.findIndex((x) => isEqual(x, value));
+    if (valIdx === -1) {
+      valIdx = values.push(value) - 1;
+    }
+    return valIdx;
+  }
 
   const [
     parentTile,
@@ -191,17 +206,9 @@ const tileHandler: SimpleHandler = async (event) => {
       if (val === 'e') {
         continue;
       }
-      let thisValueIndex = values.findIndex((v) => v.stringValue === val);
-      if (thisValueIndex === -1) {
-        thisValueIndex = values.push({stringValue: val}) - 1;
-      }
-
-      const fVal = zRes*(Math.floor(parseFloat(val)/zRes));
-      // console.log(val, fVal);
-      let fValueIndex = values.findIndex((v) => v.intValue === fVal);
-      if (fValueIndex === -1) {
-        fValueIndex = values.push({intValue: fVal}) - 1;
-      }
+      const eleVal = Math.round(parseFloat(val) * 100);
+      const fVal = Math.floor(parseFloat(val)/zRes);
+      const fmVal = zRes*fVal;
 
       features.push({
         // id must be unique within the layer
@@ -217,10 +224,18 @@ const tileHandler: SimpleHandler = async (event) => {
           15, // close path
         ],
         tags: [
-          0,
-          thisValueIndex,
-          1,
-          fValueIndex,
+          0, // ele
+          addValue({intValue: eleVal}),
+          1, // f_m
+          addValue({intValue: fmVal}),
+          2, // x
+          addValue({intValue: (parentTile[0] * 2**(Math.log2(tileSize))) + rawColIdx}),
+          3, // y
+          addValue({intValue: (parentTile[1] * 2**(Math.log2(tileSize))) + rawRowIdx}),
+          4, // z
+          addValue({intValue: demCubeZ}),
+          5, // f
+          addValue({intValue: fVal})
         ]
       });
     }

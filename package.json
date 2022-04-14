@@ -27,7 +27,9 @@
   },
   "dependencies": {
     "@hapi/accept": "^5.0.2",
+    "@mapbox/tilebelt": "^1.0.2",
     "http-encoding": "^1.5.0",
+    "lodash": "^4.17.21",
     "node-fetch": "^3.2.3"
   }
 }

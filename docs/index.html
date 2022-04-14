@@ -24,7 +24,7 @@
 </head>
 
 <body>
-  <div id="map" data-gesture-handling="off" data-lat="35.3528" data-lng="138.7807" data-zoom="10" data-pitch="60" data-marker="off" data-style="./style.json"></div>
+  <div id="map" data-gesture-handling="off" data-lat="35.3528" data-lng="138.7807" data-zoom="10" data-pitch="60" data-marker="off" data-style="./style.json" data-hash="on"></div>
   <div id="hover-stats">
     <div id="current-pos"></div>
     <div id="current-alt"></div>
@@ -63,9 +63,19 @@
 
         const currentFeature = features[0];
         if (currentFeature) {
-          console.log(currentFeature.id);
           // currentPos.innerText = `lat,lng`;
-          currentAlt.innerText = `${currentFeature.properties.ele}m`;
+          currentAlt.innerText = `${currentFeature.properties.ele / 100}m`;
+        }
+      });
+
+
+
+      mapEl.addEventListener('click', function(e) {
+        e.point = new mapboxgl.Point(e.clientX, e.clientY);
+        const features = map.queryRenderedFeatures(e.point, {layers: ['dem-extrusion']});
+        const feature = features[0];
+        if (feature) {
+          console.log(feature.properties);
         }
       });
     });

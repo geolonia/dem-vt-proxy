@@ -13,7 +13,7 @@
     },
     "dem": {
       "type": "vector",
-      "url": "http://localhost:3000/jgsi-dem/tiles.json"
+      "url": "https://o3mc94v2u1.execute-api.ap-northeast-1.amazonaws.com/jgsi-dem/tiles.json"
     }
   },
   "light": {

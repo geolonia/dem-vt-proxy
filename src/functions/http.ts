@@ -197,14 +197,15 @@ const tileHandler: SimpleHandler = async (event) => {
       }
 
       const fVal = zRes*(Math.floor(parseFloat(val)/zRes));
-      console.log(val, fVal);
+      // console.log(val, fVal);
       let fValueIndex = values.findIndex((v) => v.intValue === fVal);
       if (fValueIndex === -1) {
         fValueIndex = values.push({intValue: fVal}) - 1;
       }
 
       features.push({
-        id: (rowIdx << 16) ^ (colIdx),
+        // id must be unique within the layer
+        id: ((0xFF & rowIdx) << 8) | (0xFF & colIdx),
         type: vector_tile.Tile.GeomType.POLYGON,
         geometry: [
           ((1 & 0x7) | (1 << 3)), // MoveTo for 1

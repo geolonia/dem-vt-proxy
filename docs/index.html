@@ -1,32 +1,75 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>GSI-DEM Vector</title>
-    <style>
-      html, body, #map {
-        height: 100vh;
-        width: 100vw;
-        padding: 0;
-        margin: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"
-      data-gesture-handling="off"
-      data-lat="35.3528"
-      data-lng="138.7807"
-      data-zoom="10"
-      data-pitch="60"
-      data-marker="off"
-      data-style="./style.json"
-    ></div>
-    <script type="text/javascript" src="https://cdn.geolonia.com/v1/embed?geolonia-api-key=YOUR-API-KEY"></script>
-    <script type="module">
-      const map = new geolonia.Map('#map');
-      window._mainMap = map;
-      map.on('load', function() {
+
+<head>
+  <title>GSI-DEM Vector</title>
+  <style>
+    html,
+    body,
+    #map {
+      height: 100vh;
+      width: 100vw;
+      padding: 0;
+      margin: 0;
+      position: relative;
+    }
+    #hover-stats {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: #fff;
+      padding: 4px 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map" data-gesture-handling="off" data-lat="35.3528" data-lng="138.7807" data-zoom="10" data-pitch="60" data-marker="off" data-style="./style.json"></div>
+  <div id="hover-stats">
+    <div id="current-pos"></div>
+    <div id="current-alt"></div>
+  </div>
+  <script type="text/javascript" src="https://cdn.geolonia.com/v1/embed?geolonia-api-key=YOUR-API-KEY"></script>
+  <script type="module">
+    const map = new geolonia.Map('#map');
+    window._mainMap = map;
+    let hoveredStateId = null;
+    const currentPos = document.getElementById('current-pos'),
+          currentAlt = document.getElementById('current-alt');
+    map.on('load', function () {
+      const mapEl = document.getElementById('map');
+      let hovered = [];
+      mapEl.addEventListener('mousemove', function(e) {
+        e.point = new mapboxgl.Point(e.clientX, e.clientY);
+        const features = map.queryRenderedFeatures(e.point, {layers: ['dem-extrusion']});
+        for (const feature of hovered) {
+          map.setFeatureState(feature, {
+            'hover': false,
+          });
+        }
+
+        const seen = {};
+        hovered = features;
+        let i = 0;
+        for (const feature of hovered) {
+          if (seen[feature.id]) continue;
+
+          seen[feature.id] = true;
+          map.setFeatureState(feature, {
+            'hover': i === 0,
+          });
+          i++;
+        }
+
+        const currentFeature = features[0];
+        if (currentFeature) {
+          console.log(currentFeature.id);
+          // currentPos.innerText = `lat,lng`;
+          currentAlt.innerText = `${currentFeature.properties.ele}m`;
+        }
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

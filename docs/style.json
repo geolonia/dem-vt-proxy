@@ -23,12 +23,12 @@
   "layers": [
     {"id": "opensteetmap", "type": "raster", "source": "openstreetmap"},
     {
-      "id": "dem",
+      "id": "dem-extrusion",
       "type": "fill-extrusion",
       "source": "dem",
       "source-layer": "dem",
       "paint": {
-        "fill-extrusion-color": "rgba(255, 0, 0, 1)",
+        "fill-extrusion-color": ["case", ["boolean", ["feature-state", "hover"], false], "#0f0", "#f00"],
         "fill-extrusion-height": ["get", "f_m"],
         "fill-extrusion-vertical-gradient": true,
         "fill-extrusion-opacity": 0.5

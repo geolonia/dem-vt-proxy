@@ -28,7 +28,8 @@ const metaHandler: SimpleHandler = async (event) => {
         {
           "id": "dem",
           "fields": {
-            "ele": "String"
+            "ele": "String, elevation from sea level in meters.",
+            "f_m": "Number, the F value of zfxy in meters."
           }
         }
       ],
@@ -100,10 +101,6 @@ const getMergedDemData = async (x: number, y: number, z: number) => {
 }
 
 type XYZTile = [number, number, number]; //xyz
-// const getParent = (tile: XYZTile, zoom: number) => {
-//   const zSteps = Math.max(tile[2] - zoom, 0);
-//   return [tile[0] >> zSteps, tile[1] >> zSteps, tile[2] - zSteps];
-// }
 
 const TileRelativePositionTruthTable = [
   [0, 0],
@@ -132,7 +129,6 @@ function getPositionInParent(tile: XYZTile): [TileRelativePosition, XYZTile] {
 function getRelativePositionInAncestor(tile: XYZTile, steps: number): [XYZTile, [number, number]] {
   const targetZoom = tile[2] - steps;
   let currentTile = tile;
-  // console.log('starting at', tile);
   const relativePositions: TileRelativePosition[] = [];
   while (currentTile[2] > targetZoom) {
     const [
@@ -140,10 +136,8 @@ function getRelativePositionInAncestor(tile: XYZTile, steps: number): [XYZTile, 
       newTile,
     ] = getPositionInParent(currentTile);
     relativePositions.unshift(rp1);
-    // console.log('parent of ^', newTile);
     currentTile = newTile;
   }
-  // console.log(relativePositions);
   return [
     currentTile,
     relativePositions.reduce<[number, number]>(
@@ -167,7 +161,7 @@ const tileHandler: SimpleHandler = async (event) => {
   const zInt = parseInt(z, 10);
 
   const features: vector_tile.Tile.IFeature[] = [];
-  const keys: string[] = ["ele"];
+  const keys: string[] = ["ele", "f_m"];
   const values: vector_tile.Tile.IValue[] = [];
 
   const [
@@ -184,6 +178,8 @@ const tileHandler: SimpleHandler = async (event) => {
   if (!demData) {
     return formatErrorResponse(204, '');
   }
+  const demCubeZ = parentTile[2] + Math.log2(tileSize);
+  const zRes = (2**22) / (2**demCubeZ);
 
   for (let rawRowIdx = 0; rawRowIdx < tileSize; rawRowIdx++) {
     // translate the raw row index to the mapped row index within the tile we have requested
@@ -198,6 +194,13 @@ const tileHandler: SimpleHandler = async (event) => {
       let thisValueIndex = values.findIndex((v) => v.stringValue === val);
       if (thisValueIndex === -1) {
         thisValueIndex = values.push({stringValue: val}) - 1;
+      }
+
+      const fVal = zRes*(Math.floor(parseFloat(val)/zRes));
+      console.log(val, fVal);
+      let fValueIndex = values.findIndex((v) => v.intValue === fVal);
+      if (fValueIndex === -1) {
+        fValueIndex = values.push({intValue: fVal}) - 1;
       }
 
       features.push({
@@ -215,6 +218,8 @@ const tileHandler: SimpleHandler = async (event) => {
         tags: [
           0,
           thisValueIndex,
+          1,
+          fValueIndex,
         ]
       });
     }

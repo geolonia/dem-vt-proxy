@@ -14,6 +14,10 @@
     "dem": {
       "type": "vector",
       "url": "https://o3mc94v2u1.execute-api.ap-northeast-1.amazonaws.com/jgsi-dem/tiles.json"
+    },
+    "th": {
+      "type": "geojson",
+      "data": { "type": "FeatureCollection", "features": [] }
     }
   },
   "light": {
@@ -29,9 +33,21 @@
       "source-layer": "dem",
       "paint": {
         "fill-extrusion-color": ["case", ["boolean", ["feature-state", "hover"], false], "#f00", "#0f0"],
-        "fill-extrusion-height": ["get", "f_m"],
+        "fill-extrusion-height": ["get", "f_height"],
+        "fill-extrusion-base": ["get", "f_base"],
         "fill-extrusion-vertical-gradient": true,
         "fill-extrusion-opacity": 0.8
+      }
+    },
+    {
+      "id": "th-outline",
+      "type": "fill-extrusion",
+      "source": "th",
+      "paint": {
+        "fill-extrusion-color": ["case", ["==", ["get", "kind"], "start"], "#00f", "#f0f"],
+        "fill-extrusion-height": ["get", "f_height"],
+        "fill-extrusion-base": ["get", "f_base"],
+        "fill-extrusion-opacity": 1.0
       }
     }
   ],

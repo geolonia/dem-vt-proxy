@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "sls": "sls",
+    "start": "sls offline",
     "compile:protobuf": "pbjs -t static-module -w es6 -o src/libs/protobuf.js submodules/vector-tile-spec/2.1/vector_tile.proto && pbts -o src/libs/protobuf.d.ts src/libs/protobuf.js",
     "deploy:dev": "sls deploy --stage=dev"
   },

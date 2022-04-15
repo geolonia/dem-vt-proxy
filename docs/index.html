@@ -29,8 +29,11 @@
     <div id="current-pos"></div>
     <div id="current-alt"></div>
   </div>
+
   <script type="text/javascript" src="https://cdn.geolonia.com/v1/embed?geolonia-api-key=YOUR-API-KEY"></script>
   <script type="module">
+    import tilebelt from "./tilebelt.js";
+
     const map = new geolonia.Map('#map');
     window._mainMap = map;
     let hoveredStateId = null;
@@ -63,19 +66,57 @@
 
         const currentFeature = features[0];
         if (currentFeature) {
-          // currentPos.innerText = `lat,lng`;
-          currentAlt.innerText = `${currentFeature.properties.ele / 100}m`;
+          const props = currentFeature.properties;
+          currentPos.innerText = `${props.z}/${props.f}/${props.x}/${props.y}`;
+          currentAlt.innerText = `${props.ele / 100}m`;
         }
       });
 
-
-
+      let startTile = undefined;
+      let endTile = undefined;
       mapEl.addEventListener('click', function(e) {
         e.point = new mapboxgl.Point(e.clientX, e.clientY);
         const features = map.queryRenderedFeatures(e.point, {layers: ['dem-extrusion']});
         const feature = features[0];
         if (feature) {
-          console.log(feature.properties);
+          const props = feature.properties;
+          console.log(props);
+
+          const fcf = [];
+          if (!startTile) startTile = props;
+          else if (startTile && !endTile) endTile = props;
+          else if (startTile && endTile) {
+            endTile = undefined;
+            startTile = props;
+          }
+
+          if (startTile) {
+            fcf.push({
+              id: "1",
+              type: "Feature",
+              geometry: tilebelt.tileToGeoJSON([startTile.x, startTile.y, startTile.z]),
+              properties: {
+                kind: "start",
+                ...startTile
+              }
+            });
+          }
+          if (endTile) {
+            fcf.push({
+              id: "2",
+              type: "Feature",
+              geometry: tilebelt.tileToGeoJSON([endTile.x, endTile.y, endTile.z]),
+              properties: {
+                kind: "end",
+                ...endTile
+              }
+            });
+          }
+          console.log(fcf);
+          map.getSource('th').setData({
+            type: "FeatureCollection",
+            features: fcf,
+          })
         }
       });
     });

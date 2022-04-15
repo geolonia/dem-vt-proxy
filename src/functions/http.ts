@@ -164,7 +164,8 @@ const tileHandler: SimpleHandler = async (event) => {
   const features: vector_tile.Tile.IFeature[] = [];
   const keys: string[] = [
     "ele",
-    "f_m",
+    "f_height",
+    "f_base",
     "x",
     "y",
     "z",
@@ -193,8 +194,8 @@ const tileHandler: SimpleHandler = async (event) => {
   if (!demData) {
     return formatErrorResponse(204, '');
   }
-  const demCubeZ = parentTile[2] + Math.log2(tileSize);
-  const zRes = (2**22) / (2**demCubeZ);
+  const demCubeZ = parentTile[2] + Math.log2(256);
+  const zRes = (2**25) / (2**demCubeZ);
 
   for (let rawRowIdx = 0; rawRowIdx < tileSize; rawRowIdx++) {
     // translate the raw row index to the mapped row index within the tile we have requested
@@ -208,7 +209,6 @@ const tileHandler: SimpleHandler = async (event) => {
       }
       const eleVal = Math.round(parseFloat(val) * 100);
       const fVal = Math.floor(parseFloat(val)/zRes);
-      const fmVal = zRes*fVal;
 
       features.push({
         // id must be unique within the layer
@@ -226,17 +226,19 @@ const tileHandler: SimpleHandler = async (event) => {
         tags: [
           0, // ele
           addValue({intValue: eleVal}),
-          1, // f_m
-          addValue({intValue: fmVal}),
-          2, // x
-          addValue({intValue: (parentTile[0] * 2**(Math.log2(tileSize))) + rawColIdx}),
-          3, // y
-          addValue({intValue: (parentTile[1] * 2**(Math.log2(tileSize))) + rawRowIdx}),
-          4, // z
+          1, // f_height
+          addValue({intValue: zRes * (fVal + 1)}),
+          2, // f_base
+          addValue({intValue: zRes * fVal}),
+          3, // x
+          addValue({intValue: (parentTile[0] * 2**(Math.log2(256))) + colIdx}),
+          4, // y
+          addValue({intValue: (parentTile[1] * 2**(Math.log2(256))) + rowIdx}),
+          5, // z
           addValue({intValue: demCubeZ}),
-          5, // f
+          6, // f
           addValue({intValue: fVal})
-        ]
+        ],
       });
     }
   }

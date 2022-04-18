@@ -371,6 +371,7 @@ const crossSectionHandler: SimpleHandler = async (event) => {
       geojsonCubes: {
         type: "FeatureCollection",
         features: annotatedPoints.map(([x, y, height, fVal]) => ({
+          id: x * y,
           type: "Feature",
           geometry: tilebelt.tileToGeoJSON([x, y, z]),
           properties: {

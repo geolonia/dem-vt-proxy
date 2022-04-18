@@ -175,6 +175,22 @@
       if (typeof window._currentChart !== 'undefined') {
         window._currentChart.destroy();
       }
+      let lastFeatureId;
+      const handleHover = (evt, items, legend) => {
+        if (items.length < 1) return;
+        const theCube = body.geojsonCubes.features[items[0].index];
+        if (lastFeatureId) {
+          map.removeFeatureState({
+            id: lastFeatureId,
+            source: 'cross-section'
+          }, 'hover');
+        }
+        lastFeatureId = theCube.id;
+        map.setFeatureState({
+          id: theCube.id,
+          source: 'cross-section'
+        }, { hover: true });
+      };
       const chart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -192,7 +208,8 @@
               beginAtZero: true
             }
           },
-          maintainAspectRatio: false
+          maintainAspectRatio: false,
+          onHover: handleHover,
         }
       });
       window._currentChart = chart;

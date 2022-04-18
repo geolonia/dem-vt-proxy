@@ -18,6 +18,10 @@
     "th": {
       "type": "geojson",
       "data": { "type": "FeatureCollection", "features": [] }
+    },
+    "cross-section": {
+      "type": "geojson",
+      "data": { "type": "FeatureCollection", "features": [] }
     }
   },
   "light": {
@@ -26,6 +30,16 @@
   },
   "layers": [
     {"id": "opensteetmap", "type": "raster", "source": "openstreetmap"},
+    {
+      "id": "th-line",
+      "type": "line",
+      "source": "th",
+      "filter": ["==", ["geometry-type"], "LineString"],
+      "paint": {
+        "line-color": "#000",
+        "line-width": 4
+      }
+    },
     {
       "id": "dem-extrusion",
       "type": "fill-extrusion",
@@ -43,13 +57,26 @@
       "id": "th-outline",
       "type": "fill-extrusion",
       "source": "th",
+      "filter": ["==", ["geometry-type"], "Polygon"],
       "paint": {
         "fill-extrusion-color": ["case", ["==", ["get", "kind"], "start"], "#00f", "#f0f"],
         "fill-extrusion-height": ["get", "f_height"],
         "fill-extrusion-base": ["get", "f_base"],
         "fill-extrusion-opacity": 1.0
       }
+    },
+    {
+      "id": "cs-blocks",
+      "type": "fill-extrusion",
+      "source": "cross-section",
+      "paint": {
+        "fill-extrusion-color": "#00f",
+        "fill-extrusion-height": ["get", "fh"],
+        "fill-extrusion-base": ["get", "fb"],
+        "fill-extrusion-vertical-gradient": true,
+        "fill-extrusion-opacity": 1
+      }
     }
   ],
-  "id": "kowtj0g5g"
+  "id": "dem-vt-proxy-map"
 }

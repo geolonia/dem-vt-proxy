@@ -5,6 +5,7 @@ import fetch, { Headers } from "node-fetch";
 import { encodeBuffer } from "http-encoding";
 import { isEqual } from "lodash";
 import { vector_tile } from "../libs/protobuf";
+import tilebelt from '@mapbox/tilebelt';
 
 // use this to scale pixels from the source to bigger pixels in the vector tile
 // a scale factor of 2 means the input dem 256x256 tile is split into 2**2 (4) output tiles, each with 128x128 pixels each, reducing the zoom by one.
@@ -288,11 +289,112 @@ const tileHandler: SimpleHandler = async (event) => {
   };
 };
 
+function allPointsOnLine(x0: number, y0: number, x1: number, y1: number) {
+  // Bresenham's line algorithm
+  var dx = Math.abs(x1 - x0),
+      dy = Math.abs(y1 - y0),
+      sx = x0 < x1 ? 1 : -1,
+      sy = y0 < y1 ? 1 : -1,
+      err = dx - dy,
+      out: [number, number][] = [];
+
+  while (x0 != x1 || y0 != y1) {
+    var e2 = 2 * err;
+    if (e2 > (dy * -1)) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y0 += sy;
+    }
+    out.push([x0, y0]);
+  }
+  return out;
+}
+
+function getParentAtZ(tile: XYZTile, zoom: number) {
+  const zDiff = tile[2] - zoom;
+  if (zDiff < 0) throw new Error('negative zoom');
+  return [
+    tile[0] >> zDiff, tile[1] >> zDiff, tile[2] - zDiff
+  ] as XYZTile;
+}
+
+const crossSectionHandler: SimpleHandler = async (event) => {
+  const { z: zStr, from, to } = event.queryStringParameters;
+  const z = parseInt(zStr, 10);
+  const [x0, y0] = from.split(',').map(x => parseInt(x, 10));
+  const [x1, y1] = to.split(',').map(x => parseInt(x, 10));
+
+  const points = allPointsOnLine(x0, y0, x1, y1);
+  // now we have all points on the line, we need to calculate what Z we need to request to GSI
+  // to get the points
+  // log2(256) = 8, so minus 8 from the requested Z should give us the Z level at which
+  // one pixel equals one tile
+  const requestZ = z - Math.log2(256);
+  const requestingTiles = points
+    .map(([x, y]) => getParentAtZ([x, y, z], requestZ).join('|'))
+    .filter((v, i, s) => s.indexOf(v) === i)
+    .map(x => x.split('|').map(x => parseInt(x, 10)) as unknown as XYZTile);
+
+  const loadedTiles: { [key: string]: string[][] } = {};
+  // todo: can be parallelized
+  for (const tile of requestingTiles) {
+    const demData = await getMergedDemData(tile[0], tile[1], tile[2]);
+    if (!demData) {
+      return formatErrorResponse(500, 'insufficient DEM data');
+    }
+    loadedTiles[`${tile[0]}/${tile[1]}`] = demData;
+  }
+
+  const annotatedPoints = [];
+
+  const zRes = (2**25) / (2**z);
+
+  for (const point of points) {
+    const [x,y] = point;
+    const [
+      tile,
+      [relX, relY],
+    ] = getRelativePositionInAncestor([x, y, z], Math.log2(256));
+    const tileData = loadedTiles[`${tile[0]}/${tile[1]}`];
+    const demHeightStr = tileData[relY][relX];
+    const demHeight = Math.round(parseFloat(demHeightStr) * 100);
+    const fVal = Math.floor(parseFloat(demHeightStr)/zRes);
+    annotatedPoints.push([...point, demHeight, fVal]);
+  }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      geojsonCubes: {
+        type: "FeatureCollection",
+        features: annotatedPoints.map(([x, y, height, fVal]) => ({
+          type: "Feature",
+          geometry: tilebelt.tileToGeoJSON([x, y, z]),
+          properties: {
+            ele: height,
+            fh: zRes * (fVal + 1),
+            fb: zRes * (fVal),
+          }
+        }))
+      },
+      annotatedPoints,
+    }),
+    headers: {
+      'content-type': 'application/json',
+    },
+  };
+}
+
 export const main: APIGatewayProxyHandlerV2 = async (event) => {
   if (event.routeKey === 'GET /jgsi-dem/tiles.json') {
     return await metaHandler(event);
   } else if (event.routeKey === 'GET /jgsi-dem/tiles/{z}/{x}/{y}') {
     return await tileHandler(event);
+  } else if (event.routeKey === 'GET /jgsi-dem/cross-section') {
+    return await crossSectionHandler(event);
   }
 
   return formatErrorResponse(404, "not found");

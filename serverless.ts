@@ -49,6 +49,12 @@ const serverlessConfiguration: AWS = {
             method: 'get',
             path: '/jgsi-dem/tiles/{z}/{x}/{y}'
           }
+        },
+        {
+          httpApi: {
+            method: 'get',
+            path: '/jgsi-dem/cross-section'
+          }
         }
       ]
     }

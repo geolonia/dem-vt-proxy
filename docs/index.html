@@ -5,13 +5,16 @@
   <title>GSI-DEM Vector</title>
   <style>
     html,
-    body,
-    #map {
+    body {
       height: 100vh;
       width: 100vw;
       padding: 0;
       margin: 0;
       position: relative;
+    }
+    #map {
+      width: 100vw;
+      height: 80vh;
     }
     #hover-stats {
       position: absolute;
@@ -19,6 +22,10 @@
       left: 0;
       background-color: #fff;
       padding: 4px 10px;
+    }
+    #cross-section {
+      width: 100vw;
+      height: 20vh;
     }
   </style>
 </head>
@@ -29,8 +36,13 @@
     <div id="current-pos"></div>
     <div id="current-alt"></div>
   </div>
+  <div id="cross-section">
+    <canvas id="cross-section-chart"></canvas>
+  </div>
 
   <script type="text/javascript" src="https://cdn.geolonia.com/v1/embed?geolonia-api-key=YOUR-API-KEY"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
   <script type="module">
     import tilebelt from "./tilebelt.js";
 
@@ -112,6 +124,20 @@
               }
             });
           }
+          if (fcf.length === 2) {
+            generateCrossSection([...fcf]);
+            fcf.push({
+              id: "3",
+              type: "Feature",
+              geometry: turf.lineString([
+                turf.center(fcf[0].geometry).geometry.coordinates,
+                turf.center(fcf[1].geometry).geometry.coordinates,
+              ]).geometry,
+              properties: {
+                kind: 'line'
+              }
+            });
+          }
           console.log(fcf);
           map.getSource('th').setData({
             type: "FeatureCollection",
@@ -120,6 +146,57 @@
         }
       });
     });
+
+    async function generateCrossSection(features) {
+      const [from, to] = features;
+      if (from.properties.z !== to.properties.z) {
+        alert('from / to Z not matching, try again');
+        return;
+      }
+      const fX = from.properties.x,
+            fY = from.properties.y,
+            tX = to.properties.x,
+            tY = to.properties.y;
+
+      const url = new URL('https://o3mc94v2u1.execute-api.ap-northeast-1.amazonaws.com/jgsi-dem/cross-section');
+      if (location.hostname === 'localhost') {
+        url.host = 'localhost:3000';
+        url.protocol = 'http:';
+      }
+      url.searchParams.set('from', `${fX},${fY}`);
+      url.searchParams.set('to', `${tX},${tY}`);
+      url.searchParams.set('z', from.properties.z);
+      const resp = await fetch(url.toString());
+      const body = await resp.json();
+
+      map.getSource('cross-section').setData(body.geojsonCubes);
+
+      const ctx = document.getElementById('cross-section-chart').getContext('2d');
+      if (typeof window._currentChart !== 'undefined') {
+        window._currentChart.destroy();
+      }
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: body.annotatedPoints.map((x, i) => i),
+          datasets: [
+            {
+              label: '標高',
+              data: body.annotatedPoints.map((x) => x[2] / 100)
+            }
+          ],
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          },
+          maintainAspectRatio: false
+        }
+      });
+      window._currentChart = chart;
+    }
   </script>
 </body>
 
